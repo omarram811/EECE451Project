@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     TextView timeText;
     TextView cellIdText;
     TextView networkTypeText;
-    TextView networkOperatortext;
+    TextView networkOperatorText;
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     @Override
@@ -54,8 +54,8 @@ public class MainActivity extends AppCompatActivity {
         timeText = findViewById(R.id.timeText);
         cellIdText = findViewById(R.id.cellIdText);
         networkTypeText = findViewById(R.id.networkTypeText);
-        networkOperatortext = findViewById(R.id.networkOperatorText);
-        networkOperatortext.setText(getOperator());
+        networkOperatorText = findViewById(R.id.networkOperatorText);
+        networkOperatorText.setText(getOperator());
         queryCellInfo();
     }
 
