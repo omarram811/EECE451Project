@@ -1,44 +1,66 @@
 package com.example.eece451project;
 
-import android.widget.TextView;
-import android.util.*;
-
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.os.Bundle;
-
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoGsm;
+import android.telephony.CellInfoWcdma;
+import android.telephony.CellInfoLte;
+import android.telephony.CellInfoWcdma;
 import android.telephony.CellSignalStrengthGsm;
+import android.telephony.CellSignalStrengthWcdma;
+import android.telephony.CellSignalStrengthLte;
+import android.telephony.CellIdentityGsm;
+import android.telephony.CellIdentityWcdma;
+import android.telephony.CellIdentityLte;
 import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+
+import androidx.annotation.RequiresApi;
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executor;
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
-
+    TextView signalStrengthText;
+    TextView snrText;
+    TextView frequencyText;
+    TextView timeText;
+    TextView cellIdText;
+    TextView networkTypeText;
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        if (checkPermission()) {
-            queryCellInfo();
-        } else {
-            requestPermission();
-        }
-
+        signalStrengthText = findViewById(R.id.signalStrengthText);
+        snrText = findViewById(R.id.snrText);
+        frequencyText = findViewById(R.id.frequencyText);
+        timeText = findViewById(R.id.timeText);
+        cellIdText = findViewById(R.id.cellIdText);
+        networkTypeText = findViewById(R.id.networkTypeText);
+        queryCellInfo();
     }
 
     private boolean checkPermission() {
@@ -65,47 +87,96 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
+    public String getNetworkType(int networkType) {
+        switch (networkType) {
+            case TelephonyManager.NETWORK_TYPE_GSM:
+                return "GSM";
+            case TelephonyManager.NETWORK_TYPE_GPRS:
+                return "GPRS";
+            case TelephonyManager.NETWORK_TYPE_EDGE:
+                return "EDGE";
+            case TelephonyManager.NETWORK_TYPE_UMTS:
+                return "UMTS";
+            case TelephonyManager.NETWORK_TYPE_LTE:
+                return "LTE";
+            default:
+                return "Outside Scope";
+        }
+    }
     private void queryCellInfo() {
         // Check if permissions are granted
         if (checkPermission()) {
             // Permissions are granted, proceed with querying cell info
             TelephonyManager telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
-            TextView telephonyManagerTextView = findViewById(R.id.telephonyManagerTextView);
-            telephonyManagerTextView.setText("Telephony Manager: " + telephonyManager);
+            int networkType = telephonyManager.getNetworkType();
+            networkTypeText.setText(getNetworkType(networkType));
             Executor executor = new Executor() {
                 @Override
                 public void execute(Runnable command) {
                 }
             };
-            if (telephonyManager != null) {
-                List<CellInfo> cellInfoList = telephonyManager.getAllCellInfo();
-                TextView signalStrengthTextView = findViewById(R.id.signalStrengthTextView);
-                if (cellInfoList != null) {
-                    for (CellInfo cellInfo : cellInfoList) {
-                        if (cellInfo instanceof CellInfoGsm) {
-                            signalStrengthTextView.setText("Signal Strength: 2 dBm");
-                            CellInfoGsm cellInfoGsm = (CellInfoGsm) cellInfo;
-                            CellSignalStrengthGsm cellSignalStrengthGsm = cellInfoGsm.getCellSignalStrength();
-                            int signalStrength = cellSignalStrengthGsm.getDbm();
-                            Log.d("SignalStrength", "Signal Strength: " + signalStrength + " dBm");
+            TelephonyManager.CellInfoCallback callback = null;
+            callback = new TelephonyManager.CellInfoCallback() {
+                @Override
+                public void onCellInfo(@NonNull List<CellInfo> cellInfo) {
+                }
+            };
+            telephonyManager.requestCellInfoUpdate(executor, callback);
+            List<CellInfo> cellInfoList = telephonyManager.getAllCellInfo();
+            //Log.d("List of Values", String.valueOf(cellInfoList));
+            if (cellInfoList != null) {
+                String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+                timeText.setText(date);
+                for (CellInfo cellInfo : cellInfoList) {
+                    if (cellInfo instanceof CellInfoGsm) {
+                        CellInfoGsm cellInfoGsm = (CellInfoGsm) cellInfo;
+                        CellSignalStrengthGsm cellSignalStrengthGsm = cellInfoGsm.getCellSignalStrength();
+                        int signalStrength = cellSignalStrengthGsm.getDbm();
+                        signalStrengthText.setText(signalStrength + "dBm");
 
-                            // Get other information like operator, cell ID, etc.
-                            // Send this information to the server along with a timestamp
-                            // Inside the loop where you obtain the signal strength
-                            // Update the TextView with the obtained signal strength
+                        CellIdentityGsm cellIdentityGsm = cellInfoGsm.getCellIdentity();
+                        int CellId = cellIdentityGsm.getCid();
+                        cellIdText.setText(String.valueOf(CellId));
 
-                            //signalStrengthTextView.setText("Signal Strength: " + signalStrength + " dBm");
-                            if (signalStrengthTextView != null) {
-                                signalStrengthTextView.setText("Signal Strength: " + signalStrength + " dBm");
-                            } else {
-                                Log.e("SignalStrength", "TextView is null");
-                            }
-                        }
-                        else {
-                            //TextView signalStrengthTextView = findViewById(R.id.signalStrengthTextView);
-                            signalStrengthTextView.setText("Signal Strength: 0 dBm");
-                        }
+                        //not applicable for GSM
+                        snrText.setText(String.valueOf("NONE"));
+                        frequencyText.setText(String.valueOf("NONE"));
+
+                    } else if (cellInfo instanceof CellInfoWcdma) { //WCDMA = UMTS
+                        CellInfoWcdma cellInfoUmts = (CellInfoWcdma) cellInfo;
+                        CellSignalStrengthWcdma cellSignalStrengthUmts = cellInfoUmts.getCellSignalStrength();
+                        int signalStrength = cellSignalStrengthUmts.getDbm();
+                        signalStrengthText.setText(signalStrength + "dBm");
+
+                        CellIdentityWcdma cellIdentityUmts = cellInfoUmts.getCellIdentity();
+                        int CellId = cellIdentityUmts.getCid();
+                        cellIdText.setText(String.valueOf(CellId));
+
+                        //UARFCN stands for UTRA Absolute Radio Frequency Channel Number
+                        //Frequency Band = UARFCNx0.2 + Offset
+                        int UARFCN = cellIdentityUmts.getUarfcn();
+                        float frequencyBand = (float) (UARFCN * 0.2);
+                        frequencyText.setText(String.valueOf(frequencyBand));
+
+                        //not available
+                        snrText.setText(String.valueOf("None"));
+
+                    } else if(cellInfo instanceof CellInfoLte){
+                        CellInfoLte cellInfoLte = (CellInfoLte) cellInfo;
+
+                        CellSignalStrengthLte cellSignalStrengthLte = cellInfoLte.getCellSignalStrength();
+                        int signalStrength = cellSignalStrengthLte.getDbm();
+                        signalStrengthText.setText(signalStrength + "dBm");
+
+                        CellIdentityLte cellIdentityLte = cellInfoLte.getCellIdentity();
+                        int CellId = cellIdentityLte.getCi();
+                        cellIdText.setText(String.valueOf(CellId));
+
+                        int SNR = cellSignalStrengthLte.getRssnr();
+                        snrText.setText(String.valueOf(SNR));
+
+                        int frequencyBand =  cellIdentityLte.getBandwidth();
+                        frequencyText.setText(String.valueOf(frequencyBand));
                     }
                 }
             }

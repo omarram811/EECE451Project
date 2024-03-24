@@ -8,27 +8,73 @@
     tools:context=".MainActivity">
 
     <TextView
-        android:id="@+id/signalStrengthTextView"
+        android:id="@+id/frequencyText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="TextView"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.827"
+        app:layout_constraintHorizontal_bias="0.501"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.191" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/telephonyManagerTextView"
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="68dp"
+        android:text="TextView"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.512"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/frequencyText"
+        app:layout_constraintVertical_bias="0.037" />
+
+    <TextView
+        android:id="@+id/snrText"
+        android:layout_width="61dp"
+        android:layout_height="23dp"
+        android:text="TextView"
+        app:layout_constraintBottom_toTopOf="@+id/frequencyText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.508"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.77" />
+
+    <TextView
+        android:id="@+id/signalStrengthText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        app:layout_constraintBottom_toTopOf="@+id/snrText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.512"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.7" />
+
+    <TextView
+        android:id="@+id/networkTypeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        app:layout_constraintBottom_toTopOf="@+id/signalStrengthText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.504"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.354" />
+
+    <TextView
+        android:id="@+id/cellIdText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="TextView"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/signalStrengthTextView"
-        app:layout_constraintHorizontal_bias="0.141"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.191" />
+        app:layout_constraintTop_toBottomOf="@+id/timeText" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
