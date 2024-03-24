@@ -1,15 +1,14 @@
 package com.example.eece451project;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.net.ConnectivityManager;
-import android.os.Build;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoWcdma;
 import android.telephony.CellInfoLte;
-import android.telephony.CellInfoWcdma;
 import android.telephony.CellSignalStrengthGsm;
 import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.CellSignalStrengthLte;
@@ -17,11 +16,6 @@ import android.telephony.CellIdentityGsm;
 import android.telephony.CellIdentityWcdma;
 import android.telephony.CellIdentityLte;
 import android.telephony.TelephonyManager;
-import android.util.Log;
-import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,7 +24,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.Manifest;
 import android.content.pm.PackageManager;
 
-import androidx.annotation.RequiresApi;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
@@ -48,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     TextView timeText;
     TextView cellIdText;
     TextView networkTypeText;
+    TextView networkOperatortext;
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     @Override
@@ -60,6 +54,8 @@ public class MainActivity extends AppCompatActivity {
         timeText = findViewById(R.id.timeText);
         cellIdText = findViewById(R.id.cellIdText);
         networkTypeText = findViewById(R.id.networkTypeText);
+        networkOperatortext = findViewById(R.id.networkOperatorText);
+        networkOperatortext.setText(getOperator());
         queryCellInfo();
     }
 
@@ -75,7 +71,15 @@ public class MainActivity extends AppCompatActivity {
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_PHONE_STATE},
                 PERMISSION_REQUEST_CODE);
     }
-
+    public boolean checkMobileNet(Context context) {//Checks if device is connected to a mobile network
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            Network network = connectivityManager.getActiveNetwork();
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
+        }
+        return false;
+    }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -86,6 +90,19 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+    public static boolean checkWifi(Context context) {//Checks if the device is connected to a WiFi network
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+                Network network = connectivityManager.getActiveNetwork();
+                NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+                return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+        }
+        return false;
+    }
+    public String getOperator() {
+        TelephonyManager manager = (TelephonyManager) getSystemService(TelephonyManager.class);
+        return Objects.requireNonNull(manager.getNetworkOperatorName());
     }
     public String getNetworkType(int networkType) {
         switch (networkType) {
@@ -153,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
                         cellIdText.setText(String.valueOf(CellId));
 
                         //UARFCN stands for UTRA Absolute Radio Frequency Channel Number
-                        //Frequency Band = UARFCNx0.2 + Offset
+                        //Frequency Band = UARFCNx0.2
                         int UARFCN = cellIdentityUmts.getUarfcn();
                         float frequencyBand = (float) (UARFCN * 0.2);
                         frequencyText.setText(String.valueOf(frequencyBand));
