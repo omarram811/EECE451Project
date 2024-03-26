@@ -1,38 +1,40 @@
 package com.example.eece451project;
 
+import android.Manifest;
+import android.content.ContentValues;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Bundle;
+import android.telephony.CellIdentityGsm;
+import android.telephony.CellIdentityLte;
+import android.telephony.CellIdentityWcdma;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoGsm;
-import android.telephony.CellInfoWcdma;
 import android.telephony.CellInfoLte;
+import android.telephony.CellInfoWcdma;
 import android.telephony.CellSignalStrengthGsm;
-import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.CellSignalStrengthLte;
-import android.telephony.CellIdentityGsm;
-import android.telephony.CellIdentityWcdma;
-import android.telephony.CellIdentityLte;
+import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.TelephonyManager;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.Manifest;
-import android.content.pm.PackageManager;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.Executor;
 import java.util.Objects;
+import java.util.concurrent.Executor;
+
 
 public class MainActivity extends AppCompatActivity {
     TextView signalStrengthText;
@@ -43,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
     TextView networkTypeText;
     TextView networkOperatorText;
     private static final int PERMISSION_REQUEST_CODE = 1001;
+
+    private DatabaseHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +60,9 @@ public class MainActivity extends AppCompatActivity {
         networkTypeText = findViewById(R.id.networkTypeText);
         networkOperatorText = findViewById(R.id.networkOperatorText);
         networkOperatorText.setText(getOperator());
+
+        dbHelper = new DatabaseHelper(this);
+
         queryCellInfo();
     }
 
@@ -114,8 +121,12 @@ public class MainActivity extends AppCompatActivity {
                 return "EDGE";
             case TelephonyManager.NETWORK_TYPE_UMTS:
                 return "UMTS";
+            case TelephonyManager.NETWORK_TYPE_HSDPA:
+                return "HSDPA";
             case TelephonyManager.NETWORK_TYPE_LTE:
                 return "LTE";
+            case TelephonyManager.NETWORK_TYPE_NR:
+                return "New Radio (5G)";
             default:
                 return "Outside Scope";
         }
@@ -158,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
                         //not applicable for GSM
                         snrText.setText(String.valueOf("NONE"));
                         frequencyText.setText(String.valueOf("NONE"));
+                        insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
 
                     } else if (cellInfo instanceof CellInfoWcdma) { //WCDMA = UMTS
                         CellInfoWcdma cellInfoUmts = (CellInfoWcdma) cellInfo;
@@ -178,6 +190,8 @@ public class MainActivity extends AppCompatActivity {
                         //not available
                         snrText.setText(String.valueOf("None"));
 
+                        insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
+
                     } else if(cellInfo instanceof CellInfoLte){
                         CellInfoLte cellInfoLte = (CellInfoLte) cellInfo;
 
@@ -194,6 +208,8 @@ public class MainActivity extends AppCompatActivity {
 
                         int frequencyBand =  cellIdentityLte.getBandwidth();
                         frequencyText.setText(String.valueOf(frequencyBand));
+
+                        insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
                     }
                 }
             }
@@ -202,4 +218,42 @@ public class MainActivity extends AppCompatActivity {
             requestPermission();
         }
     }
+
+    private void insertCellInfo(String operator, String signalPower, String snr, String networkType, String frequencyBand, String cellId, String timestamp) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        db.beginTransaction();
+
+        try{
+            ContentValues values = new ContentValues();
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_OPERATOR, operator);
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_SIGNAL_POWER, signalPower);
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_SNR, snr);
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_NETWORK_TYPE, networkType);
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_FREQUENCY_BAND, frequencyBand);
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_CELL_ID, cellId);
+            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_TIMESTAMP, timestamp);
+
+            long newRowId = db.insert(CellInfoContract.CellInfoEntry.TABLE_NAME, null, values);
+            if (newRowId == -1) {
+                Toast.makeText(this, "Error inserting cell info", Toast.LENGTH_SHORT).show();
+                Log.e("Insertion Error", "Error inserting cell info");
+            } else {
+                Toast.makeText(this, "Cell info inserted with row ID: " + newRowId, Toast.LENGTH_SHORT).show();
+            }
+            db.setTransactionSuccessful();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            Log.e("Insertion Error", "Error inserting cell info: " + e.getMessage());
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        dbHelper.close();
+        super.onDestroy();
+    }
+
 }
