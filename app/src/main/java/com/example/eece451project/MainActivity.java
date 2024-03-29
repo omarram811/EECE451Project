@@ -78,15 +78,7 @@ public class MainActivity extends AppCompatActivity {
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_PHONE_STATE},
                 PERMISSION_REQUEST_CODE);
     }
-    public boolean checkMobileNet(Context context) {//Checks if device is connected to a mobile network
-        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (connectivityManager != null) {
-            Network network = connectivityManager.getActiveNetwork();
-            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
-            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
-        }
-        return false;
-    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -98,6 +90,17 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    public boolean checkMobileNet(Context context) {//Checks if device is connected to a mobile network
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            Network network = connectivityManager.getActiveNetwork();
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
+        }
+        return false;
+    }
+
     public static boolean checkWifi(Context context) {//Checks if the device is connected to a WiFi network
         ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (connectivityManager != null) {
@@ -107,10 +110,12 @@ public class MainActivity extends AppCompatActivity {
         }
         return false;
     }
+
     public String getOperator() {
         TelephonyManager manager = (TelephonyManager) getSystemService(TelephonyManager.class);
         return Objects.requireNonNull(manager.getNetworkOperatorName());
     }
+
     public String getNetworkType(int networkType) {
         switch (networkType) {
             case TelephonyManager.NETWORK_TYPE_GSM:
@@ -131,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
                 return "Outside Scope";
         }
     }
+
     private void queryCellInfo() {
         // Check if permissions are granted
         if (checkPermission()) {
