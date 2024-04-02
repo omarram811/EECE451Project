@@ -28,12 +28,16 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import java.io.IOException;
+import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.Executor;
+import java.io.DataOutputStream;
+
 
 
 public class MainActivity extends AppCompatActivity {
@@ -47,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     private DatabaseHelper dbHelper;
+    MyThread myThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
         dbHelper = new DatabaseHelper(this);
 
         queryCellInfo();
+        myThread = new MyThread();
+        new Thread(myThread).start();
     }
 
     private boolean checkPermission() {
@@ -262,4 +269,44 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    private class MyThread implements Runnable{
+        private volatile String msg="";
+        Socket socket;
+        DataOutputStream dos;
+        @Override
+        public void run() {
+
+            try {
+                String data= retrieveDataFromDatabase();
+                socket = new Socket("ip address", 5678);
+                dos=new DataOutputStream(socket.getOutputStream());
+                dos.writeUTF(msg);
+                dos.close();
+                dos.flush();
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+        private String retrieveDataFromDatabase() {
+            StringBuilder dataBuilder = new StringBuilder();
+            // Retrieve data from SQLite database here
+            // You can use dbHelper to access the SQLite database and retrieve the data
+            // Example:
+            // SQLiteDatabase db = dbHelper.getReadableDatabase();
+            // Cursor cursor = db.rawQuery("SELECT * FROM " + CellInfoContract.CellInfoEntry.TABLE_NAME, null);
+            // Loop through the cursor and append data to dataBuilder
+
+            // Dummy data for demonstration purposes
+            dataBuilder.append("operator1,signalPower1,snr1,networkType1,frequencyBand1,cellId1,");
+            dataBuilder.append("operator2,signalPower2,snr2,networkType2,frequencyBand2,cellId2,");
+
+            return dataBuilder.toString();
+        }
+
+        public void sendMsg() {
+            new Thread(this).start();
+        }
+    }
 }
