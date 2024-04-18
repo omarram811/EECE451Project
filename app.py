@@ -15,9 +15,10 @@ app.app_context().push()
 class NetworkData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date_created = db.Column(db.DateTime, default=datetime.now())
+    #mac_adress = db.Column(db.Text, nullable=False)
     operator = db.Column(db.String(10), nullable=False)
     signal_power = db.Column(db.Text, nullable=False)
-    snr = db.Column(db.Integer)
+    snr = db.Column(db.Text)
     network_type = db.Column(db.Text, nullable=False)
     frequency_band = db.Column(db.Text)
     cell_id = db.Column(db.Text, nullable=False)
@@ -41,7 +42,7 @@ def handle_client(client_socket):
 
             operator = data_dict.get('operator')
             signal_power = data_dict.get('signal_power')
-            snr = int(data_dict.get('snr'))
+            snr = data_dict.get('snr')
             network_type = data_dict.get('network_type')
             frequency_band = data_dict.get('frequency_band')
             cell_id = data_dict.get('cell_id')
@@ -56,9 +57,10 @@ def handle_client(client_socket):
                 print('----- 4 commited successfully -----')
             if date1!=None and date2!=None:
                 statistics = calculate_statistics(date1, date2)
-                statistics_json = json.dumps(statistics)
+                statistics_json = json.dumps(statistics) + '\n'
                 client_socket.send(statistics_json.encode())
                 print("----- 5 Sent Statistics ----")
+                print(statistics_json)
         except json.JSONDecodeError:
             print("Error: Invalid Data")
         
@@ -84,26 +86,6 @@ def calculate_statistics(start_date, end_date):
         for operator, count in operator_counts.items():
             operator_averages[operator] = round((count / len(data)) * 100, 2)
         statistics['average_connectivity_time_per_operator'] = operator_averages
-
-        '''
-        # Average connectivity time per network type
-        network_type_counts = {}
-        for item in data:
-            network_type_counts[item.network_type] = network_type_counts.get(item.network_type, 0) + 1
-        network_type_averages = {}
-        for network_type, count in network_type_counts.items():
-            network_type_averages[network_type] = round((count / len(data))*100, 2)
-        statistics['average_connectivity_time_per_network_type'] = network_type_averages
-
-        # Average Signal Power per network type
-        signal_power_sums = {}
-        for item in data:
-            signal_power_sums[item.network_type] = signal_power_sums.get(item.network_type, 0) + int(item.signal_power)
-        signal_power_averages={}
-        for network_type, power_sum in signal_power_sums.items():
-            signal_power_averages[network_type] = round((power_sum / count)*100, 2)
-        statistics['average_signal_power_per_network_type'] = signal_power_averages
-        '''
 
         # Create dictionaries to store counts and power sums per network type
         network_type_counts = {}
@@ -159,7 +141,7 @@ def calculate_statistics(start_date, end_date):
 
 def socket_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('0.0.0.0', 8080))
+    server_socket.bind(('0.0.0.0', 1337))
     server_socket.listen(5)
 
     while True:
