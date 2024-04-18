@@ -1,10 +1,18 @@
 package com.example.eece451project;
 
+import android.annotation.SuppressLint;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.Looper;
+import android.util.Log;
+import android.view.View;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.PrintWriter;
+
 import android.Manifest;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -22,22 +30,31 @@ import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.TelephonyManager;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
+import java.io.OutputStream;
 import java.net.Socket;
+import java.io.DataInputStream;
+import java.io.InputStreamReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.Executor;
-import java.io.DataOutputStream;
-
+import android.os.Handler;
+import android.os.AsyncTask;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -48,10 +65,17 @@ public class MainActivity extends AppCompatActivity {
     TextView cellIdText;
     TextView networkTypeText;
     TextView networkOperatorText;
+    TextView statisticsText;
     private static final int PERMISSION_REQUEST_CODE = 1001;
-
-    private DatabaseHelper dbHelper;
-    MyThread myThread;
+    private final Handler handler = new Handler();
+    private final Runnable sendDataRunnable = new Runnable() {
+        @Override
+        public void run() {
+            queryCellInfo();
+            sendDataToServer();
+            handler.postDelayed(this, 10000); // Send data every 10 seconds
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,12 +89,38 @@ public class MainActivity extends AppCompatActivity {
         networkTypeText = findViewById(R.id.networkTypeText);
         networkOperatorText = findViewById(R.id.networkOperatorText);
         networkOperatorText.setText(getOperator());
+        statisticsText = findViewById(R.id.statisticsText);
 
-        dbHelper = new DatabaseHelper(this);
+        try {
+            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            while (networkInterfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = networkInterfaces.nextElement();
+                Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+                while (inetAddresses.hasMoreElements()) {
+                    InetAddress inetAddress = inetAddresses.nextElement();
+                    String ipAddress = inetAddress.getHostAddress();
+                    // Print or use the IP address as needed
+                    Log.d("IPAddress", "IP Address: " + ipAddress);
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager != null) {
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            String bssid = ((WifiInfo) wifiInfo).getBSSID();
+            // bssid contains the MAC address of the access point (not the device itself)
+            Log.d("MACAddress", "BSSID: " + bssid);
+        }
 
-        queryCellInfo();
-        myThread = new MyThread();
-        new Thread(myThread).start();
+        handler.post(sendDataRunnable);
+        sendDataToServer();
+    }
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        handler.removeCallbacks(sendDataRunnable);
     }
 
     private boolean checkPermission() {
@@ -104,16 +154,6 @@ public class MainActivity extends AppCompatActivity {
             Network network = connectivityManager.getActiveNetwork();
             NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
             return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
-        }
-        return false;
-    }
-
-    public static boolean checkWifi(Context context) {//Checks if the device is connected to a WiFi network
-        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (connectivityManager != null) {
-                Network network = connectivityManager.getActiveNetwork();
-                NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
-                return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
         }
         return false;
     }
@@ -182,7 +222,6 @@ public class MainActivity extends AppCompatActivity {
                         //not applicable for GSM
                         snrText.setText(String.valueOf("NONE"));
                         frequencyText.setText(String.valueOf("NONE"));
-                        insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
 
                     } else if (cellInfo instanceof CellInfoWcdma) { //WCDMA = UMTS
                         CellInfoWcdma cellInfoUmts = (CellInfoWcdma) cellInfo;
@@ -203,8 +242,6 @@ public class MainActivity extends AppCompatActivity {
                         //not available
                         snrText.setText(String.valueOf("None"));
 
-                        insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
-
                     } else if(cellInfo instanceof CellInfoLte){
                         CellInfoLte cellInfoLte = (CellInfoLte) cellInfo;
 
@@ -222,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                         int frequencyBand =  cellIdentityLte.getBandwidth();
                         frequencyText.setText(String.valueOf(frequencyBand));
 
-                        insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
+                        //insertCellInfo(networkOperatorText.getText().toString(), signalStrengthText.getText().toString(), snrText.getText().toString(),networkTypeText.getText().toString(), frequencyText.getText().toString(), cellIdText.getText().toString(), timeText.getText().toString());
                     }
                 }
             }
@@ -232,81 +269,73 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void insertCellInfo(String operator, String signalPower, String snr, String networkType, String frequencyBand, String cellId, String timestamp) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.beginTransaction();
 
-        try{
-            ContentValues values = new ContentValues();
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_OPERATOR, operator);
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_SIGNAL_POWER, signalPower);
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_SNR, snr);
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_NETWORK_TYPE, networkType);
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_FREQUENCY_BAND, frequencyBand);
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_CELL_ID, cellId);
-            values.put(CellInfoContract.CellInfoEntry.COLUMN_NAME_TIMESTAMP, timestamp);
+    public static class SocketClientThread extends Thread {
+        private final String serverIp;
+        private final int serverPort;
+        private final String data;
+        private final Handler handler;
+        private final TextView statisticsText;
 
-            long newRowId = db.insert(CellInfoContract.CellInfoEntry.TABLE_NAME, null, values);
-            if (newRowId == -1) {
-                Toast.makeText(this, "Error inserting cell info", Toast.LENGTH_SHORT).show();
-                Log.e("Insertion Error", "Error inserting cell info");
-            } else {
-                Toast.makeText(this, "Cell info inserted with row ID: " + newRowId, Toast.LENGTH_SHORT).show();
-            }
-            db.setTransactionSuccessful();
+        public SocketClientThread(String serverIp, int serverPort, String data, Handler handler, TextView statisticsText) {
+            this.serverIp = serverIp;
+            this.serverPort = serverPort;
+            this.data = data;
+            this.handler = handler;
+            this.statisticsText = statisticsText;
         }
-        catch (Exception e) {
-            e.printStackTrace();
-            Log.e("Insertion Error", "Error inserting cell info: " + e.getMessage());
-        } finally {
-            db.endTransaction();
-        }
-    }
 
-    @Override
-    protected void onDestroy() {
-        dbHelper.close();
-        super.onDestroy();
-    }
-
-    private class MyThread implements Runnable{
-        private volatile String msg="";
-        Socket socket;
-        DataOutputStream dos;
         @Override
         public void run() {
-
+            // Your socket client logic here
             try {
-                String data= retrieveDataFromDatabase();
-                socket = new Socket("ip address", 5678);
-                dos=new DataOutputStream(socket.getOutputStream());
-                dos.writeUTF(msg);
-                dos.close();
-                dos.flush();
+                Socket socket = new Socket(serverIp, serverPort);
+                OutputStream outputStream = socket.getOutputStream();
+                outputStream.write(data.getBytes());
+                outputStream.flush();
+
+                InputStream inputStream = socket.getInputStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                StringBuilder receivedData = new StringBuilder();
+                String line;
+                while ((line=reader.readLine()) != null){
+                    receivedData.append(line);
+                    Log.d("Received Lines", line);
+                }
+                Log.d("SnipsChips", receivedData.toString());
+                handler.post(() -> {
+                    statisticsText.setText(receivedData.toString());
+                });
                 socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
         }
-        private String retrieveDataFromDatabase() {
-            StringBuilder dataBuilder = new StringBuilder();
-            // Retrieve data from SQLite database here
-            // You can use dbHelper to access the SQLite database and retrieve the data
-            // Example:
-            // SQLiteDatabase db = dbHelper.getReadableDatabase();
-            // Cursor cursor = db.rawQuery("SELECT * FROM " + CellInfoContract.CellInfoEntry.TABLE_NAME, null);
-            // Loop through the cursor and append data to dataBuilder
+    }
 
-            // Dummy data for demonstration purposes
-            dataBuilder.append("operator1,signalPower1,snr1,networkType1,frequencyBand1,cellId1,");
-            dataBuilder.append("operator2,signalPower2,snr2,networkType2,frequencyBand2,cellId2,");
-
-            return dataBuilder.toString();
+    private void sendDataToServer(){
+        String serverIp = "10.169.25.250";
+        int serverPort = 1337;
+        String data = formatData();
+        Handler handler = new Handler(Looper.getMainLooper());
+        statisticsText = findViewById(R.id.statisticsText);
+        new SocketClientThread(serverIp, serverPort, data, handler, statisticsText).start();
+    }
+    private String formatData() {
+        JSONObject jsonData = new JSONObject();
+        try {
+            jsonData.put("signal_power", signalStrengthText.getText());
+            jsonData.put("snr", snrText.getText());
+            jsonData.put("frequency_band", frequencyText.getText());
+            jsonData.put("Time", timeText.getText());
+            jsonData.put("cell_id", cellIdText.getText());
+            jsonData.put("network_type", networkTypeText.getText());
+            jsonData.put("operator", networkOperatorText.getText());
+            jsonData.put("date_1", "2024-04-14 13:30:00");
+            jsonData.put("date_2", "2024-04-16 11:00:00");
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-
-        public void sendMsg() {
-            new Thread(this).start();
-        }
+        return jsonData.toString();
     }
 }
