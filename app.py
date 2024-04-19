@@ -5,6 +5,7 @@ import socket
 import threading
 import json
 import os
+from scapy.all import ARP, Ether, srp
 
 app = Flask(__name__)
 db_file_path = os.path.join(app.root_path, 'test.db')
@@ -25,12 +26,25 @@ class NetworkData(db.Model):
 
     def __repr__(self):
         return self.cell_id
+# Dictionary to store connected clients' information
+connected_clients = {}
 
 @app.route('/')
 def index():
     return render_template('index.html')
- 
+@app.route('/stats')
+def show_stats():
+    connected_devices_count = len(connected_clients)
+    connected_devices_info = [{'IP': ip, 'MAC': mac} for ip, (_, mac) in connected_clients.items()]
+    return jsonify({
+        'connected_devices_count': connected_devices_count,
+        'connected_devices_info': connected_devices_info
+    })
+
 def handle_client(client_socket):
+    client_ip = client_socket.getpeername()[0]
+    client_mac = get_mac_address(client_ip)
+    connected_clients[client_ip] = (client_ip, client_mac)
     while True:
         data = client_socket.recv(1024).decode()
         print('----- 1 data received ---')
@@ -138,6 +152,13 @@ def calculate_statistics(start_date, end_date):
         device_average_signal_power = {cell_id: sum(powers) / len(powers) for cell_id, powers in device_signal_power.items()}
         statistics['average_signal_power_per_device'] = device_average_signal_power
         return statistics
+
+def get_mac_address(ip):
+    arp = ARP(pdst=ip)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether / arp
+    result = srp(packet, timeout=3, verbose=False)[0]
+    return result[0][1].hwsrc if result else "Not Available"
 
 def socket_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
